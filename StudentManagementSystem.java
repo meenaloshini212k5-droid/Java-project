@@ -1,36 +1,28 @@
-import java.io.*;
-import java.util.*;
+package student;
 
-class Student {
-    int rollNo;
-    String name;
-    int age;
-
-    Student(int rollNo, String name, int age) {
-        this.rollNo = rollNo;
-        this.name = name;
-        this.age = age;
-    }
-
-    @Override
-    public String toString() {
-        return "Roll No: " + rollNo + ", Name: " + name + ", Age: " + age;
-    }
-}
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLIntegrityConstraintViolationException;
+import java.sql.Statement;
+import java.util.Scanner;
 
 public class StudentManagementSystem {
 
-    static ArrayList<Student> students = new ArrayList<>();
-    static final String FILE_NAME = "students.txt";
+    // Database connection details
+    static final String URL = "jdbc:mysql://localhost:3306/studentdb";
+    static final String USER = "root";      // your MySQL username
+    static final String PASS = "root";      // your MySQL password
 
     public static void main(String[] args) {
-        loadDataFromFile();
+
         Scanner sc = new Scanner(System.in);
 
         while (true) {
-            System.out.println("\n--- Student Management System ---");
+            System.out.println("\n===== STUDENT MANAGEMENT SYSTEM =====");
             System.out.println("1. Add Student");
-            System.out.println("2. View Students");
+            System.out.println("2. View All Students");
             System.out.println("3. Search Student");
             System.out.println("4. Delete Student");
             System.out.println("5. Exit");
@@ -53,107 +45,123 @@ public class StudentManagementSystem {
                     deleteStudent(sc);
                     break;
                 case 5:
-                    saveDataToFile();
-                    System.out.println("Data saved. Exiting...");
+                    System.out.println("Exiting program...");
+                    sc.close();
                     return;
                 default:
-                    System.out.println("Invalid choice. Try again.");
+                    System.out.println("Invalid choice!");
             }
         }
     }
 
-    // ------------------- Add Student -------------------
+    // ---------------- ADD STUDENT ----------------
     public static void addStudent(Scanner sc) {
-        System.out.print("Enter Roll No: ");
-        int roll = sc.nextInt();
-        sc.nextLine();
+        try (Connection con = DriverManager.getConnection(URL, USER, PASS)) {
 
-        System.out.print("Enter Name: ");
-        String name = sc.nextLine();
+            System.out.print("Enter Roll No: ");
+            int roll = sc.nextInt();
+            sc.nextLine();
 
-        System.out.print("Enter Age: ");
-        int age = sc.nextInt();
+            System.out.print("Enter Name: ");
+            String name = sc.nextLine();
 
-        students.add(new Student(roll, name, age));
-        System.out.println("Student Added Successfully!");
+            System.out.print("Enter Age: ");
+            int age = sc.nextInt();
+
+            String sql = "INSERT INTO students VALUES (?, ?, ?)";
+            PreparedStatement ps = con.prepareStatement(sql);
+
+            ps.setInt(1, roll);
+            ps.setString(2, name);
+            ps.setInt(3, age);
+
+            ps.executeUpdate();
+
+            System.out.println("Student added successfully!");
+
+        } catch (SQLIntegrityConstraintViolationException e) {
+            System.out.println("Error: Roll number already exists.");
+        } catch (Exception e) {
+            System.out.println("Error adding student: " + e.getMessage());
+        }
     }
 
-    // ------------------- View All -------------------
+    // ---------------- VIEW STUDENTS ----------------
     public static void viewStudents() {
-        if (students.isEmpty()) {
-            System.out.println("No students found.");
-            return;
-        }
+        try (Connection con = DriverManager.getConnection(URL, USER, PASS)) {
 
-        System.out.println("\n--- Student List ---");
-        for (Student s : students) {
-            System.out.println(s);
+            String sql = "SELECT * FROM students";
+            Statement st = con.createStatement();
+            ResultSet rs = st.executeQuery(sql);
+
+            System.out.println("\n--- STUDENT LIST ---");
+
+            boolean empty = true;
+
+            while (rs.next()) {
+                empty = false;
+                System.out.println("Roll No: " + rs.getInt("rollNo") +
+                                   ", Name: " + rs.getString("name") +
+                                   ", Age: " + rs.getInt("age"));
+            }
+
+            if (empty) {
+                System.out.println("No students found.");
+            }
+
+        } catch (Exception e) {
+            System.out.println("Error fetching students: " + e.getMessage());
         }
     }
 
-    // ------------------- Search -------------------
+    // ---------------- SEARCH STUDENT ----------------
     public static void searchStudent(Scanner sc) {
-        System.out.print("Enter Roll No to Search: ");
-        int roll = sc.nextInt();
+        try (Connection con = DriverManager.getConnection(URL, USER, PASS)) {
 
-        for (Student s : students) {
-            if (s.rollNo == roll) {
-                System.out.println("Student Found: " + s);
-                return;
+            System.out.print("Enter Roll No to search: ");
+            int roll = sc.nextInt();
+
+            String sql = "SELECT * FROM students WHERE rollNo = ?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, roll);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                System.out.println("\nStudent Found:");
+                System.out.println("Roll No : " + rs.getInt("rollNo"));
+                System.out.println("Name    : " + rs.getString("name"));
+                System.out.println("Age     : " + rs.getInt("age"));
+            } else {
+                System.out.println("Student not found.");
             }
+
+        } catch (Exception e) {
+            System.out.println("Error searching student: " + e.getMessage());
         }
-        System.out.println("Student Not Found.");
     }
 
-    // ------------------- Delete -------------------
+    // ---------------- DELETE STUDENT ----------------
     public static void deleteStudent(Scanner sc) {
-        System.out.print("Enter Roll No to Delete: ");
-        int roll = sc.nextInt();
+        try (Connection con = DriverManager.getConnection(URL, USER, PASS)) {
 
-        Iterator<Student> it = students.iterator();
-        while (it.hasNext()) {
-            if (it.next().rollNo == roll) {
-                it.remove();
-                System.out.println("Student Deleted Successfully.");
-                return;
-            }
-        }
-        System.out.println("Student Not Found.");
-    }
+            System.out.print("Enter Roll No to delete: ");
+            int roll = sc.nextInt();
 
-    // ------------------- Save Data to File -------------------
-    public static void saveDataToFile() {
-        try {
-            FileWriter fw = new FileWriter(FILE_NAME);
-            for (Student s : students) {
-                fw.write(s.rollNo + "," + s.name + "," + s.age + "\n");
+            String sql = "DELETE FROM students WHERE rollNo = ?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, roll);
+
+            int result = ps.executeUpdate();
+
+            if (result > 0) {
+                System.out.println("Student deleted successfully.");
+            } else {
+                System.out.println("Student not found.");
             }
-            fw.close();
+
         } catch (Exception e) {
-            System.out.println("Error saving file.");
-        }
-    }
-
-    // ------------------- Load Data from File -------------------
-    public static void loadDataFromFile() {
-        try {
-            BufferedReader br = new BufferedReader(new FileReader(FILE_NAME));
-            String line;
-
-            while ((line = br.readLine()) != null) {
-                String[] data = line.split(",");
-                int roll = Integer.parseInt(data[0]);
-                String name = data[1];
-                int age = Integer.parseInt(data[2]);
-
-                students.add(new Student(roll, name, age));
-            }
-            br.close();
-
-        } catch (FileNotFoundException e) {
-            // Ignore - file will be created later
-        } catch (Exception e) {
-            System.out.println("Error reading file.");
+            System.out.println("Error deleting student: " + e.getMessage());
         }
     }
 }
