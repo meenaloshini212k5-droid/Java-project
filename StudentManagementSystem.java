@@ -1,23 +1,26 @@
-package student;
+package Student;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLIntegrityConstraintViolationException;
-import java.sql.Statement;
+imp ort java.sql.*;
 import java.util.Scanner;
 
 public class StudentManagementSystem {
 
     // Database connection details
     static final String URL = "jdbc:mysql://localhost:3306/studentdb";
-    static final String USER = "root";      // your MySQL username
-    static final String PASS = "root";      // your MySQL password
+    static final String USER = "root";      // Your MySQL username
+    static final String PASS = "root";      // Your MySQL password
+
+    static Scanner sc = new Scanner(System.in);
 
     public static void main(String[] args) {
 
-        Scanner sc = new Scanner(System.in);
+        // Load MySQL Driver
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            System.out.println("MySQL JDBC Driver not found!");
+            return;
+        }
 
         while (true) {
             System.out.println("\n===== STUDENT MANAGEMENT SYSTEM =====");
@@ -32,30 +35,21 @@ public class StudentManagementSystem {
             sc.nextLine(); // clear buffer
 
             switch (choice) {
-                case 1:
-                    addStudent(sc);
-                    break;
-                case 2:
-                    viewStudents();
-                    break;
-                case 3:
-                    searchStudent(sc);
-                    break;
-                case 4:
-                    deleteStudent(sc);
-                    break;
-                case 5:
+                case 1 -> addStudent();
+                case 2 -> viewStudents();
+                case 3 -> searchStudent();
+                case 4 -> deleteStudent();
+                case 5 -> {
                     System.out.println("Exiting program...");
-                    sc.close();
                     return;
-                default:
-                    System.out.println("Invalid choice!");
+                }
+                default -> System.out.println("Invalid choice!");
             }
         }
     }
 
     // ---------------- ADD STUDENT ----------------
-    public static void addStudent(Scanner sc) {
+    public static void addStudent() {
         try (Connection con = DriverManager.getConnection(URL, USER, PASS)) {
 
             System.out.print("Enter Roll No: ");
@@ -68,7 +62,7 @@ public class StudentManagementSystem {
             System.out.print("Enter Age: ");
             int age = sc.nextInt();
 
-            String sql = "INSERT INTO students VALUES (?, ?, ?)";
+            String sql = "INSERT INTO students(rollNo, name, age) VALUES (?, ?, ?)";
             PreparedStatement ps = con.prepareStatement(sql);
 
             ps.setInt(1, roll);
@@ -76,12 +70,11 @@ public class StudentManagementSystem {
             ps.setInt(3, age);
 
             ps.executeUpdate();
-
             System.out.println("Student added successfully!");
 
         } catch (SQLIntegrityConstraintViolationException e) {
             System.out.println("Error: Roll number already exists.");
-        } catch (Exception e) {
+        } catch (SQLException e) {
             System.out.println("Error adding student: " + e.getMessage());
         }
     }
@@ -95,7 +88,6 @@ public class StudentManagementSystem {
             ResultSet rs = st.executeQuery(sql);
 
             System.out.println("\n--- STUDENT LIST ---");
-
             boolean empty = true;
 
             while (rs.next()) {
@@ -105,17 +97,15 @@ public class StudentManagementSystem {
                                    ", Age: " + rs.getInt("age"));
             }
 
-            if (empty) {
-                System.out.println("No students found.");
-            }
+            if (empty) System.out.println("No students found.");
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             System.out.println("Error fetching students: " + e.getMessage());
         }
     }
 
     // ---------------- SEARCH STUDENT ----------------
-    public static void searchStudent(Scanner sc) {
+    public static void searchStudent() {
         try (Connection con = DriverManager.getConnection(URL, USER, PASS)) {
 
             System.out.print("Enter Roll No to search: ");
@@ -136,13 +126,13 @@ public class StudentManagementSystem {
                 System.out.println("Student not found.");
             }
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             System.out.println("Error searching student: " + e.getMessage());
         }
     }
 
     // ---------------- DELETE STUDENT ----------------
-    public static void deleteStudent(Scanner sc) {
+    public static void deleteStudent() {
         try (Connection con = DriverManager.getConnection(URL, USER, PASS)) {
 
             System.out.print("Enter Roll No to delete: ");
@@ -153,14 +143,13 @@ public class StudentManagementSystem {
             ps.setInt(1, roll);
 
             int result = ps.executeUpdate();
-
             if (result > 0) {
                 System.out.println("Student deleted successfully.");
             } else {
                 System.out.println("Student not found.");
             }
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             System.out.println("Error deleting student: " + e.getMessage());
         }
     }
